@@ -8,7 +8,10 @@ export default defineConfig({
     name: 'Vibela',
     description: 'Developer overlay for collecting visual UI notes for LLM handoff.',
     version: '0.1.0',
-    permissions: ['activeTab', 'storage', 'scripting', 'downloads'],
+    // unlimitedStorage lifts chrome.storage.local off its 10MB cap: annotation
+    // drafts embed full-viewport PNG data URLs, which overrun the default quota
+    // once several screenshots are captured (Resource::kQuotaBytes exceeded).
+    permissions: ['activeTab', 'storage', 'unlimitedStorage', 'scripting', 'downloads'],
     host_permissions: ['<all_urls>'],
     action: {
       default_title: 'Toggle Vibela overlay',
