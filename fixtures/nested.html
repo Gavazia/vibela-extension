@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vibela Nested Fixture</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 32px; background: rgb(255, 255, 255); color: rgb(17, 24, 39); }
+      .shell { padding: 20px; border-radius: 8px; background: rgb(241, 245, 249); }
+      .target { display: inline-block; padding: 10px 14px; border: 1px dashed rgb(147, 51, 234); border-radius: 10px; font-size: 14px; font-weight: 500; }
+      .destination { display: inline-block; margin-left: 24px; padding: 8px 16px; border-radius: 9999px; background: rgb(16, 185, 129); color: rgb(255, 255, 255); }
+    </style>
+  </head>
+  <body>
+    <main class="shell" aria-label="Nested fixture root">
+      <section><div><article><div><div><section><p><span class="target deep-node with-extra-class" aria-label="Deep target">Deeply nested target text for metadata truncation checks</span></p></section></div></div></article></div></section>
+      <aside><button class="destination swap-target" type="button" title="Swap destination">Destination chip</button></aside>
+    </main>
+  </body>
+</html>

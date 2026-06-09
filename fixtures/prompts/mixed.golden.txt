@@ -1,0 +1,83 @@
+== VIBELA PROMPT ==
+Fecha: 1 de enero de 2026
+Pantalla: /fixtures/light.html
+Viewport: 1280×720px
+[📸 vibela-00-full-page.png — captura de pantalla completa descargada en Descargas]
+
+────────────────────────────────────────────
+ROL
+────────────────────────────────────────────
+
+Actúa como experto senior en UI/UX, diseño visual, animaciones CSS
+y consistencia de interfaces. Tu objetivo es implementar los cambios
+visuales descritos más abajo manteniendo la coherencia con el design
+system existente (colores, tipografía, spacing, componentes).
+
+────────────────────────────────────────────
+CAMBIOS VISUALES SOLICITADOS
+────────────────────────────────────────────
+
+### CAMBIO 1 — Anotación
+Label:    Light fixture card
+Elemento: <button> "Start review"
+Padre:    <section>
+Clases:   cta primary-action
+Tailwind: bg-indigo-600 text-white text-base font-semibold py-3 px-6 rounded-full
+CSS raw:  bg:rgb(79, 70, 229) | color:rgb(255, 255, 255) | fontSize:16px | fontWeight:600 | padding:12px 24px 12px 24px | borderRadius:9999px | display:inline-block
+Tamaño:   140×44px
+📝 Aumentar contraste del CTA.
+[📸 vibela-01-annotate.png — descargado en carpeta Descargas]
+
+### CAMBIO 2 — Reposición
+Label:    Light fixture card
+Elemento: <button> "Start review"
+Padre:    <section>
+Clases:   cta primary-action
+Tailwind: bg-indigo-600 text-white text-base font-semibold py-3 px-6 rounded-full
+CSS raw:  bg:rgb(79, 70, 229) | color:rgb(255, 255, 255) | fontSize:16px | fontWeight:600 | padding:12px 24px 12px 24px | borderRadius:9999px | display:inline-block
+Tamaño:   140×44px → 180×48px
+Mover:    +12px X, -8px Y
+📝 Subir ligeramente y hacerlo más ancho.
+[📸 vibela-02-before.png — ANTES — descargado en carpeta Descargas]
+[📸 vibela-02-after.png — DESPUÉS — descargado en carpeta Descargas]
+
+### CAMBIO 3 — Intercambio
+Label:    Light fixture card
+Elemento: <button> "Start review"
+Padre:    <section>
+Clases:   cta primary-action
+Tailwind: bg-indigo-600 text-white text-base font-semibold py-3 px-6 rounded-full
+CSS raw:  bg:rgb(79, 70, 229) | color:rgb(255, 255, 255) | fontSize:16px | fontWeight:600 | padding:12px 24px 12px 24px | borderRadius:9999px | display:inline-block
+→ REPOSICIONAR HACIA: <button> "Destination chip"
+  Destino tamaño: 150×40px en (520, 260)
+  Destino Tailwind: bg-emerald-500 text-white rounded-full
+📝 Mover el CTA junto al chip de destino.
+
+### CAMBIO 4 — Edición de Texto
+Label:    Light fixture card
+Elemento: <button> "Start review"
+Padre:    <section>
+Clases:   cta primary-action
+Tailwind: bg-indigo-600 text-white text-base font-semibold py-3 px-6 rounded-full
+CSS raw:  bg:rgb(79, 70, 229) | color:rgb(255, 255, 255) | fontSize:16px | fontWeight:600 | padding:12px 24px 12px 24px | borderRadius:9999px | display:inline-block
+Texto actual:    "Start review"
+Texto propuesto: "Revisar diseño"
+📝 Usar texto en español.
+[📸 vibela-04-text-edit.png — descargado en carpeta Descargas]
+
+────────────────────────────────────────────
+INSTRUCCIONES
+────────────────────────────────────────────
+
+1. Analiza TODOS los cambios visuales y los screenshots adjuntos.
+2. Identifica los archivos y componentes React exactamente afectados.
+3. Crea un PLAN DE IMPLEMENTACIÓN detallado paso a paso.
+4. Mantén la CONSISTENCIA visual con el design system existente.
+5. Si ves una MEJOR FORMA de lograr el resultado visual, PROPÓNLA.
+6. Haz PREGUNTAS si necesitas más contexto o hay ambigüedad.
+7. ⚠️  NO escribas código todavía. ESPERA mi aprobación explícita.
+   (Responde con "adelante", "go" o "implementa" para proceder.)
+
+[📎 Screenshots descargados en tu carpeta Descargas — incluí las imágenes vibela-*.png en el chat junto con este prompt]
+
+== FIN VIBELA PROMPT ==

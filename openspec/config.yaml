@@ -1,0 +1,65 @@
+project:
+  id: vibecopilot-extension
+  name: Vibe Copilot Extension
+  purpose: >-
+    Standalone browser extension for developers to pick DOM elements on any web page,
+    annotate them, capture screenshots, and copy a structured prompt plus PNG assets for LLM handoff.
+  repository: C:/Users/Andy Gavaz/Documents/Dev/Personal_Tools/vibecopilot-extension
+  artifact_store: openspec
+
+sdd:
+  initialized_on: 2026-05-19
+  execution_mode: interactive
+  chained_pr_strategy: auto-forecast
+  review_budget_changed_lines: 400
+  strict_tdd: false
+  phase_rules:
+    proposal: required before design/tasks/apply for scoped changes
+    design: required for architecture-affecting or cross-cutting changes
+    tasks: required before implementation
+    apply: do not start if workload/review-budget forecast conflicts with preflight preferences; ask for delivery decision first
+    verify: required before completion claims
+
+context:
+  origin:
+    repository: C:/Users/Andy Gavaz/Documents/Dev/Personal_Tools/Quien-es-quien
+    source_file: src/shared/ui/CopilotOverlay.jsx
+    relationship: >-
+      Reference-only extraction source for the current in-app React component (~1323 LOC).
+      The new extension must be standalone and must not depend on the origin repository at runtime.
+    license_posture: >-
+      Do not copy code verbatim from Drawbridge / All Rights Reserved material; borrow patterns only.
+      The current CopilotOverlay.jsx in Quien-es-quien is user-owned code and may be ported.
+
+stack:
+  platform:
+    browser_extension: Chrome MV3 first, eventual Firefox support
+    build_tool: WXT (Vite-based; MV3+MV2; automatic Firefox build; HMR; native content-script UI support)
+  language: TypeScript
+  ui:
+    framework: React 18
+    mounting: Shadow DOM host inside the content script
+  screenshot:
+    capture: chrome.tabs.captureVisibleTab from the background service worker
+    crop: content script crop using devicePixelRatio
+  handoff:
+    text: navigator.clipboard.writeText plain-text prompt copy
+    images: chrome.downloads auto-download of PNG assets
+    naming: vibecopilot-NN-*.png parity with current CopilotOverlay UX
+  persistence:
+    local: chrome.storage.local
+    sync_preferences: chrome.storage.sync
+
+testing:
+  status: no-test-runner-configured
+  detected_runner: none
+  preferred_future_runner: Vitest
+  preferred_future_libraries:
+    - '@testing-library/react'
+  notes: >-
+    Greenfield repository currently has no package.json and no configured test runner.
+    Do not claim strict TDD until tests are configured and runnable.
+
+skills:
+  registry: .atl/skill-registry.md
+  project_specific_skills: none-yet
