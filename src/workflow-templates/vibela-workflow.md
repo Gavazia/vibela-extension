@@ -1,11 +1,3 @@
----
-globs:
-  - ".vibela/**"
-  - "**/tasks.md"
-  - "**/tasks.json"
-alwaysApply: true
----
-
 # Vibela Workflow Rules
 
 ## 1. Role
@@ -27,6 +19,10 @@ keep the task statuses up to date — without ever committing or pushing code.
 **Human-readable checklist:** `.vibela/tasks.md`
 - Use this for a quick orientation overview.
 - Always update the `.md` alongside the `.json` when transitioning status.
+
+**Event log:** `.vibela/stream.jsonl`
+- Append-only log written by the Vibela extension on each sync.
+- Do NOT modify it. Status transitions live in `tasks.json`/`tasks.md` only.
 
 **Screenshot path resolution:**
 - Paths in `screenshotPath` are stored as `./screenshots/<file>`.

@@ -8,6 +8,8 @@ import {
 
 const TOGGLE_MESSAGE = 'VIBE_COPILOT_TOGGLE';
 const GET_STATE_MESSAGE = 'VIBE_COPILOT_GET_STATE';
+const POPUP_STATE_MESSAGE = 'VIBE_COPILOT_POPUP_STATE';
+const POPUP_TOGGLE_MESSAGE = 'VIBE_COPILOT_POPUP_TOGGLE';
 
 type ToggleResponse = { ok: true } | { ok: false; reason: string };
 const RESTRICTED_SCHEMES = [
@@ -138,35 +140,61 @@ function handleExtensionRequest(message: ExtensionRequest, sender: chrome.runtim
   return Promise.resolve(fail('UNKNOWN', 'Unknown extension request'));
 }
 
+// Annotation drafts are keyed `annotations:<tabId>:<origin>`. Tab ids never
+// survive tab close or a browser restart, so those keys orphan silently — and
+// with unlimitedStorage they would accumulate forever. Reap them here.
+const DRAFT_KEY_PREFIX = 'annotations:';
+
+async function removeDraftKeys(matches: (key: string) => boolean): Promise<void> {
+  const all = await chrome.storage.local.get(null);
+  const stale = Object.keys(all).filter((key) => key.startsWith(DRAFT_KEY_PREFIX) && matches(key));
+  if (stale.length > 0) await chrome.storage.local.remove(stale);
+}
+
+/** Toggle the overlay for a tab; shared by the toolbar action and the popup. */
+async function toggleOverlay(tab: chrome.tabs.Tab): Promise<{ active: boolean; allowed: boolean }> {
+  if (!tab.id || !isAllowedUrl(tab.url)) {
+    if (tab.id) await setBadge(tab.id, 'restricted');
+    return { active: false, allowed: false };
+  }
+
+  const nextActive = !(await readActive(tab.id));
+
+  try {
+    let response: ToggleResponse | undefined;
+    try {
+      response = await sendToggle(tab.id, nextActive);
+    } catch {
+      await ensureContentScript(tab.id);
+      await waitForContentScriptReady();
+      response = await sendToggle(tab.id, nextActive);
+    }
+
+    if (!response?.ok) throw new Error(response?.reason || 'content-script-not-ready');
+
+    await writeActive(tab.id, nextActive);
+    await setBadge(tab.id, nextActive);
+    return { active: nextActive, allowed: true };
+  } catch {
+    // Some allowed URLs may still reject content scripts (for example file:// without access).
+    // Do not claim the overlay is active unless the content script acknowledged the toggle.
+    await writeActive(tab.id, false);
+    await setBadge(tab.id, 'unknown');
+    return { active: false, allowed: true };
+  }
+}
+
 export default defineBackground(() => {
   chrome.action.onClicked.addListener(async (tab) => {
-    if (!tab.id || !isAllowedUrl(tab.url)) {
-      if (tab.id) await setBadge(tab.id, 'restricted');
-      return;
-    }
+    await toggleOverlay(tab);
+  });
 
-    const nextActive = !(await readActive(tab.id));
-
-    try {
-      let response: ToggleResponse | undefined;
-      try {
-        response = await sendToggle(tab.id, nextActive);
-      } catch {
-        await ensureContentScript(tab.id);
-        await waitForContentScriptReady();
-        response = await sendToggle(tab.id, nextActive);
-      }
-
-      if (!response?.ok) throw new Error(response?.reason || 'content-script-not-ready');
-
-      await writeActive(tab.id, nextActive);
-      await setBadge(tab.id, nextActive);
-    } catch {
-      // Some allowed URLs may still reject content scripts (for example file:// without access).
-      // Do not claim the overlay is active unless the content script acknowledged the toggle.
-      await writeActive(tab.id, false);
-      await setBadge(tab.id, 'unknown');
-    }
+  // Draft GC: per-tab on close, full sweep on browser startup (all old tab ids are gone).
+  chrome.tabs.onRemoved.addListener((tabId) => {
+    void removeDraftKeys((key) => key.startsWith(`${DRAFT_KEY_PREFIX}${tabId}:`));
+  });
+  chrome.runtime.onStartup.addListener(() => {
+    void removeDraftKeys(() => true);
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -185,6 +213,26 @@ export default defineBackground(() => {
 
     if (message?.kind === 'CAPTURE_VISIBLE_TAB_REQUEST') {
       handleExtensionRequest(message, sender).then(sendResponse);
+      return true;
+    }
+
+    // Popup messages carry an explicit tabId because popup senders have no tab.
+    if (message?.type === POPUP_STATE_MESSAGE && typeof message.tabId === 'number') {
+      chrome.tabs.get(message.tabId)
+        .then(async (tab) => {
+          const allowed = isAllowedUrl(tab.url);
+          const active = allowed ? await readActive(message.tabId) : false;
+          sendResponse({ active, allowed });
+        })
+        .catch(() => sendResponse({ active: false, allowed: false }));
+      return true;
+    }
+
+    if (message?.type === POPUP_TOGGLE_MESSAGE && typeof message.tabId === 'number') {
+      chrome.tabs.get(message.tabId)
+        .then((tab) => toggleOverlay(tab))
+        .then(sendResponse)
+        .catch(() => sendResponse({ active: false, allowed: false }));
       return true;
     }
 

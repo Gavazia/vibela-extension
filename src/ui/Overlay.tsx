@@ -23,6 +23,7 @@ interface SwapPopupState {
   source: PickerSnapshot;
   target: PickerSnapshot;
   comment: string;
+  saving?: boolean;
 }
 
 interface TextEditPopupState {
@@ -124,7 +125,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
     const id = 'vc-btn-save-swap';
     const btn = document.getElementById(id);
     if (!btn) return;
-    const handler = (e: Event) => { e.preventDefault(); saveSwapPopup(); };
+    const handler = (e: Event) => { e.preventDefault(); void saveSwapPopup(); };
     btn.addEventListener('click', handler);
     return () => btn.removeEventListener('click', handler);
   }, [swapPopup, tabId]);
@@ -194,7 +195,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
     const onTestCmd = (e: Event) => {
       const cmd = (e as CustomEvent).detail?.cmd;
       if (cmd === 'save-annotate') void saveAnnotatePopup();
-      else if (cmd === 'save-swap') saveSwapPopup();
+      else if (cmd === 'save-swap') { void saveSwapPopup(); }
       else if (cmd === 'save-textedit') { void saveTextEditPopup(); }
     };
     document.addEventListener('vibe:test-cmd', onTestCmd);
@@ -283,6 +284,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
       },
       screenshotBefore: data.screenshotBefore,
       screenshotAfter: data.screenshotAfter,
+      pathname: window.location.pathname,
     };
     replaceAnnotations((current) => [...current, record]);
     setSelected(snapshot);
@@ -328,6 +330,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
       elementInfo: snapshot.info,
       comment,
       screenshot,
+      pathname: window.location.pathname,
     };
     replaceAnnotations((current) => [...current, record]);
     setSelected(snapshot);
@@ -361,12 +364,16 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
     void commitAnnotation(popup.snapshot, comment);
   };
 
-  const saveSwapPopup = () => {
-    if (!swapPopup) return;
+  const saveSwapPopup = async () => {
+    if (!swapPopup || swapPopup.saving) return;
     if (!tabId) {
       setStatus('esperando estado de la pestaña; intenta de nuevo');
       return;
     }
+    setSwapPopup({ ...swapPopup, saving: true });
+    // Same location-shot convention as annotate: viewport capture with the
+    // SOURCE element highlighted, so the agent sees what is being moved.
+    const screenshot = await captureLocationShot(swapPopup.source.el);
     const record: SwapRecord = {
       id: newAnnotationId('swap'),
       createdAt: Date.now(),
@@ -374,12 +381,14 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
       elementInfo: swapPopup.source.info,
       targetInfo: swapPopup.target.info,
       comment: swapPopup.comment.trim() || undefined,
+      screenshot,
+      pathname: window.location.pathname,
     };
     replaceAnnotations((current) => [...current, record]);
     setSelected(swapPopup.target);
     setSwapSource(null);
     setSwapPopup(null);
-    setStatus('intercambio guardado');
+    setStatus(screenshot ? 'intercambio guardado con captura' : 'intercambio guardado sin captura');
   };
 
   const saveTextEditPopup = async () => {
@@ -410,6 +419,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
       newText,
       comment: textEditPopup.comment.trim() || undefined,
       screenshot,
+      pathname: window.location.pathname,
     };
     replaceAnnotations((current) => [...current, record]);
     setSelected(textEditPopup.snapshot);
@@ -590,7 +600,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
       }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
         if (popup) { event.preventDefault(); void saveAnnotatePopup(); }
-        else if (swapPopup) { event.preventDefault(); saveSwapPopup(); }
+        else if (swapPopup) { event.preventDefault(); void saveSwapPopup(); }
         else if (textEditPopup) { event.preventDefault(); void saveTextEditPopup(); }
       }
     };
@@ -663,23 +673,25 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
 
   async function handleSync() {
     if (connection !== 'connected') {
-      setStatus('No hay proyecto conectado. Conectá un proyecto primero.');
+      setStatus('No hay proyecto conectado. Conecta un proyecto primero.');
       return;
     }
     if (annotations.length === 0) {
-      setStatus('nada que sincronizar — primero anotá algo');
+      setStatus('nada que sincronizar — primero anota algo');
       return;
     }
     setStatus('sincronizando…');
     try {
       const result = await projectSync.sync(annotations, { pathname: window.location.pathname });
       if (result.error === 'not-connected') {
-        setStatus('No hay proyecto conectado. Conectá un proyecto primero.');
+        setStatus('No hay proyecto conectado. Conecta un proyecto primero.');
         setConnection('disconnected');
         return;
       }
       const plural = result.count !== 1;
-      const msg = `Sincronizado · ${result.count} tarea${plural ? 's' : ''} escrita${plural ? 's' : ''} a .vibela/`;
+      const msg = result.count === 0
+        ? `Sincronizado · sin tareas nuevas (${result.total} ya en .vibela/)`
+        : `Sincronizado · ${result.count} tarea${plural ? 's' : ''} nueva${plural ? 's' : ''} → .vibela/ (${result.total} en total)`;
       setStatus(msg);
       // Keep the confirmation up briefly, then clear it unless a newer status replaced it.
       window.setTimeout(() => setStatus((s) => (s === msg ? '' : s)), 3000);
@@ -769,7 +781,7 @@ export function Overlay({ active, allowed, shadowHostEl, tabId }: OverlayProps) 
           <small>Destino: “{swapPopup.target.info.text || swapPopup.target.info.classes || swapPopup.target.info.tag}”</small>
           <textarea autoFocus value={swapPopup.comment} placeholder="Comentario opcional…" onChange={(event) => setSwapPopup({ ...swapPopup, comment: event.target.value })} />
           <div className="vc-popup-actions">
-            <button type="button" id="vc-btn-save-swap" onClick={() => saveSwapPopup()}>Guardar</button>
+            <button type="button" id="vc-btn-save-swap" disabled={swapPopup.saving} onClick={() => { void saveSwapPopup(); }}>{swapPopup.saving ? 'Guardando…' : 'Guardar'}</button>
             <button type="button" onClick={() => { setSwapPopup(null); setStatus('destino cancelado; elige otro destino'); }}>Cancelar</button>
           </div>
           <small>Ctrl/Cmd+Enter guarda · Esc vuelve al segundo paso</small>

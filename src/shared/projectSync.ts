@@ -33,7 +33,7 @@ import pointerTemplate  from '../workflow-templates/vibela-pointer.md?raw';
 // agent auto-discovers the Vibela workflow in its own native format.
 const CLAUDE_SKILL_FRONTMATTER = `---
 name: vibela
-description: Process Vibela UI annotation tasks from the .vibela/ queue written by the Vibela browser extension. Use when the user runs /vibela, asks to process .vibela/tasks.json, or apply browser UI annotations to code.
+description: "Process Vibela UI annotation tasks from the .vibela/ queue written by the Vibela browser extension. Use when the user runs /vibela, asks to process .vibela/tasks.json, or apply browser UI annotations to code."
 ---
 
 `;
@@ -526,7 +526,7 @@ export async function sync(
 ): Promise<SyncResult> {
   const stored = await handleStore.load();
   if (!stored) {
-    return { count: 0, error: 'not-connected' };
+    return { count: 0, total: 0, error: 'not-connected' };
   }
 
   const { handle: rootHandle } = stored;
@@ -547,14 +547,20 @@ export async function sync(
     }
   }
 
-  // Map annotations to incoming tasks.
-  const pathname = meta?.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
+  // Map annotations to incoming tasks. Each record carries the pathname captured
+  // at annotation time; the sync-time pathname is ONLY a fallback for legacy
+  // records, so navigating between annotating and syncing cannot mislabel tasks.
+  const fallbackPathname = meta?.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : '');
   const incomingTasks: VibelaTask[] = annotations.map((a, i) => {
     const task = annotationToTask(a, i);
-    // Inject the current pathname (annotationToTask uses window.location.pathname but
-    // this call may run in a test context where window is mocked).
-    return { ...task, pathname };
+    return a.pathname ? task : { ...task, pathname: fallbackPathname };
   });
+
+  // Only tasks not already present in tasks.json count as new — drafts persist
+  // after sync, so re-syncing the same batch must not duplicate stream events
+  // or inflate the reported count.
+  const existingIds = new Set(existingTasks.map((t) => t.id));
+  const newTasks = incomingTasks.filter((t) => !existingIds.has(t.id));
 
   // Merge: dedup by id, preserve non-"to do" statuses.
   const mergedTasks = mergeTasks(existingTasks, incomingTasks);
@@ -573,15 +579,14 @@ export async function sync(
   await writeFileWithRetry('tasks.json', JSON.stringify(mergedTasks, null, 2));
   await writeFileWithRetry('tasks.md', tasksToMarkdown(mergedTasks));
 
-  // REQ-2.5: append only the INCOMING batch to stream.jsonl.
-  const streamLines = tasksToStreamLines(incomingTasks);
+  // REQ-2.5: append only NEW tasks to stream.jsonl — it is an append-only event
+  // log, so re-synced batches must not produce duplicate entries.
+  const streamLines = tasksToStreamLines(newTasks);
   await appendLines(vibelaDir, 'stream.jsonl', streamLines);
 
-  // REQ-2.6: write screenshots for annotations that carry one.
+  // REQ-2.6: write screenshots for annotations that carry one (idempotent by name).
   for (const a of annotations) {
-    if (a.type === 'annotate' && a.screenshot) {
-      await writeScreenshot(screenshotsDir, `${a.id}.png`, a.screenshot);
-    } else if (a.type === 'text-edit' && a.screenshot) {
+    if ((a.type === 'annotate' || a.type === 'text-edit' || a.type === 'swap') && a.screenshot) {
       await writeScreenshot(screenshotsDir, `${a.id}.png`, a.screenshot);
     } else if (a.type === 'transform') {
       if (a.screenshotBefore) {
@@ -593,5 +598,5 @@ export async function sync(
     }
   }
 
-  return { count: incomingTasks.length, error: null };
+  return { count: newTasks.length, total: mergedTasks.length, error: null };
 }

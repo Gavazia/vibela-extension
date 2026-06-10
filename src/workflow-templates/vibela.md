@@ -4,14 +4,13 @@ description: Process Vibela UI annotation tasks from the .vibela/ task queue
 
 # /vibela — Process Vibela UI Annotation Tasks
 
-## Task File Locations
+## Task File Location
 
-Search for the task file in this order:
-1. `.vibela/tasks.json` (standard location — preferred)
-2. `tasks.json` (project root fallback)
-3. `../.vibela/tasks.json` (parent directory fallback)
+The task queue lives at `.vibela/tasks.json` — the extension always scaffolds
+this directory on connect. Do not pick up `tasks.json` files found elsewhere in
+the tree; they belong to other tools.
 
-If none of the above exist, see **Error: No .vibela/ directory** below.
+If it does not exist, see **Error: No .vibela/ directory** below.
 
 ## Full Workflow Rules
 
@@ -37,15 +36,15 @@ to do  →  doing  →  done
 - Set `"doing"` **before** making any code changes for a task.
 - Set `"done"` or `"failed"` **after** the change is complete.
 - Update **both** `tasks.json` and `tasks.md` in the same batch operation.
-- Forbidden: `to do → done`, `done → doing`, `done → failed`.
+- Forbidden: `to do → done`, `done → doing`, `done → failed`, `failed → done`.
 
 ### Mode Selection
 - `/vibela` or `/vibela step` — one task at a time, pause for approval (default)
 - `/vibela batch` — group related tasks (same component / selector / type)
 - `/vibela yolo` — all pending tasks autonomously, no pausing (explicit only)
 
-Auto-select: step for ≤ 5 mixed tasks; batch for 6+ same-type tasks; never
-auto-select yolo.
+Auto-select: step for ≤ 5 mixed tasks; batch for 6+ same-type tasks targeting
+the same component or file; never auto-select yolo.
 
 ### No Auto-Commit
 **NEVER** run `git commit`, `git push`, or create a PR.
@@ -70,7 +69,7 @@ Then run /vibela again.
 
 ### No pending tasks
 ```
-✅ No hay tareas pendientes. La cola está vacía o todas las tareas están completas.
+✅ No pending Vibela tasks. Queue is empty or all tasks are already done.
 ```
 
 ---

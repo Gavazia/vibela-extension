@@ -1,4 +1,49 @@
+import { useEffect, useState } from 'react';
+
+const POPUP_STATE_MESSAGE = 'VIBE_COPILOT_POPUP_STATE';
+const POPUP_TOGGLE_MESSAGE = 'VIBE_COPILOT_POPUP_TOGGLE';
+
+type PopupOverlayState = 'loading' | 'on' | 'off' | 'restricted';
+
 export function App() {
+  const [overlayState, setOverlayState] = useState<PopupOverlayState>('loading');
+  const [tabId, setTabId] = useState<number | null>(null);
+
+  useEffect(() => {
+    chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+      if (!tab?.id) {
+        setOverlayState('restricted');
+        return;
+      }
+      setTabId(tab.id);
+      chrome.runtime.sendMessage(
+        { type: POPUP_STATE_MESSAGE, tabId: tab.id },
+        (response?: { active?: boolean; allowed?: boolean }) => {
+          if (chrome.runtime.lastError || !response || !response.allowed) {
+            setOverlayState('restricted');
+            return;
+          }
+          setOverlayState(response.active ? 'on' : 'off');
+        },
+      );
+    });
+  }, []);
+
+  const handleToggle = () => {
+    if (tabId == null || overlayState === 'restricted' || overlayState === 'loading') return;
+    setOverlayState('loading');
+    chrome.runtime.sendMessage(
+      { type: POPUP_TOGGLE_MESSAGE, tabId },
+      (response?: { active?: boolean; allowed?: boolean }) => {
+        if (chrome.runtime.lastError || !response || !response.allowed) {
+          setOverlayState('restricted');
+          return;
+        }
+        setOverlayState(response.active ? 'on' : 'off');
+      },
+    );
+  };
+
   return (
     <main style={{
       width: 260,
@@ -49,20 +94,40 @@ export function App() {
 
       {/* Body */}
       <div style={{ padding: '14px 16px', display: 'grid', gap: 12 }}>
-        {/* Instrucción */}
-        <div style={{
-          background: 'rgba(29,78,216,0.15)',
-          border: '1px solid rgba(96,165,250,0.2)',
-          borderRadius: 10,
-          padding: '10px 12px',
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd', marginBottom: 4 }}>
-            Cómo usar
-          </div>
-          <div style={{ fontSize: 11, color: '#64748b', lineHeight: 1.5 }}>
-            Hacé click en el ícono de la barra para activar la bolita en la página actual.
-          </div>
-        </div>
+        {/* Toggle de la pestaña activa */}
+        <button
+          type="button"
+          onClick={handleToggle}
+          disabled={overlayState === 'restricted' || overlayState === 'loading'}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            padding: '10px 12px',
+            borderRadius: 10,
+            border: overlayState === 'on' ? '1px solid rgba(34,197,94,0.5)' : '1px solid rgba(96,165,250,0.3)',
+            background: overlayState === 'on' ? 'rgba(34,197,94,0.15)' : 'rgba(29,78,216,0.25)',
+            color: overlayState === 'on' ? '#86efac' : '#bfdbfe',
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: overlayState === 'restricted' || overlayState === 'loading' ? 'default' : 'pointer',
+            opacity: overlayState === 'restricted' ? 0.5 : 1,
+          }}
+        >
+          <span style={{
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            background: overlayState === 'on' ? '#22c55e' : overlayState === 'off' ? '#64748b' : '#475569',
+            boxShadow: overlayState === 'on' ? '0 0 6px #22c55e' : 'none',
+            flexShrink: 0,
+          }} />
+          {overlayState === 'loading' && 'Comprobando…'}
+          {overlayState === 'on' && 'Overlay activo — clic para desactivar'}
+          {overlayState === 'off' && 'Activar overlay en esta página'}
+          {overlayState === 'restricted' && 'No disponible en esta página'}
+        </button>
 
         {/* Modos disponibles */}
         <div>

@@ -37,6 +37,9 @@ interface BaseAnnotation {
   createdAt: number;
   elementInfo: ElementInfo;
   comment?: string;
+  /** Page path captured when the annotation was created — NOT at sync time,
+   *  so SPA navigation between annotating and syncing cannot mislabel tasks. */
+  pathname?: string;
 }
 
 export interface AnnotateRecord extends BaseAnnotation {
@@ -61,6 +64,8 @@ export interface TransformRecord extends BaseAnnotation {
 export interface SwapRecord extends BaseAnnotation {
   type: 'swap';
   targetInfo: ElementInfo;
+  /** Viewport shot with the source element highlighted, for agent context. */
+  screenshot?: string;
 }
 
 export interface TextEditRecord extends BaseAnnotation {
@@ -158,6 +163,9 @@ export interface RestoreResult {
 }
 
 export interface SyncResult {
+  /** Tasks newly added to .vibela/ by this sync (not previously present). */
   count: number;
+  /** Total tasks in .vibela/tasks.json after the merge. */
+  total: number;
   error: string | null;
 }

@@ -306,7 +306,7 @@ describe('projectSync.sync()', () => {
 
     const result = await sync([ANNOTATE]);
 
-    expect(result).toEqual({ count: 0, error: 'not-connected' });
+    expect(result).toEqual({ count: 0, total: 0, error: 'not-connected' });
   });
 
   // -------------------------------------------------------------------------
@@ -318,7 +318,7 @@ describe('projectSync.sync()', () => {
 
     const result = await sync([ANNOTATE, SWAP]);
 
-    expect(result).toEqual({ count: 2, error: null });
+    expect(result).toEqual({ count: 2, total: 2, error: null });
 
     const json = readFile(mockRoot, '.vibela', 'tasks.json');
     const tasks: VibelaTask[] = JSON.parse(json);
@@ -377,9 +377,10 @@ describe('projectSync.sync()', () => {
 
     injectHandle(mockRoot);
 
-    // Re-sync the same annotation
+    // Re-sync the same annotation — it already exists in tasks.json, so it is
+    // NOT counted as new (count reports new tasks only; total is the merged set).
     const result = await sync([ANNOTATE]);
-    expect(result).toEqual({ count: 1, error: null });
+    expect(result).toEqual({ count: 0, total: 1, error: null });
 
     const tasks: VibelaTask[] = JSON.parse(readFile(mockRoot, '.vibela', 'tasks.json'));
     expect(tasks).toHaveLength(1);
@@ -455,6 +456,21 @@ describe('projectSync.sync()', () => {
     expect(lines.length).toBeGreaterThanOrEqual(2);
     expect(lines[0]).toBe(existingLine);
     expect(JSON.parse(lines[lines.length - 1]!).taskId).toBe('ann-001');
+  });
+
+  it('does NOT append duplicate stream events when re-syncing an already-synced annotation', async () => {
+    injectHandle(mockRoot);
+
+    // First sync writes the task and one stream line.
+    await sync([ANNOTATE]);
+    // Second sync of the same draft batch must not add another event.
+    const result = await sync([ANNOTATE]);
+
+    const streamContent = readFile(mockRoot, '.vibela', 'stream.jsonl');
+    const lines = streamContent.split('\n').filter(Boolean);
+    expect(lines).toHaveLength(1);
+    expect(JSON.parse(lines[0]!).taskId).toBe('ann-001');
+    expect(result).toEqual({ count: 0, total: 1, error: null });
   });
 
   // -------------------------------------------------------------------------

@@ -74,7 +74,9 @@ export function annotationToTask(a: Annotation, index: number): VibelaTask {
       height: rect.height,
     },
     timestamp,
-    pathname: typeof window !== 'undefined' ? window.location.pathname : '',
+    // Prefer the pathname captured at annotation time; window.location is only
+    // a fallback for legacy records created before per-annotation capture.
+    pathname: a.pathname ?? (typeof window !== 'undefined' ? window.location.pathname : ''),
   };
 
   if (a.type === 'annotate') {
@@ -129,8 +131,8 @@ export function annotationToTask(a: Annotation, index: number): VibelaTask {
     return {
       ...base,
       type: 'swap',
-      // Per REQ-4.3: no screenshot for swap
-      screenshotPath: null,
+      // Viewport shot with the source element highlighted (same convention as annotate).
+      screenshotPath: sr.screenshot ? `./screenshots/${a.id}.png` : null,
       details,
     };
   }
